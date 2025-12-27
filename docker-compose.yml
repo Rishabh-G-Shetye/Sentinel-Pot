@@ -1,0 +1,34 @@
+services:
+  ssh-pot:
+    build: .
+    container_name: sentinel_ssh
+    # Ensure pcaps folder exists, start tcpdump, then start honeypot
+    command: sh -c "mkdir -p /app/pcaps && tcpdump -U -nn -i eth0 -w /app/pcaps/ssh_traffic.pcap port 2222 & python honeypot.py"
+    cap_add: [NET_ADMIN, NET_RAW]
+    ports: ["2222:2222"]
+    volumes:
+      - .:/app
+
+  web-pot:
+    build: .
+    container_name: sentinel_web
+    command: sh -c "mkdir -p /app/pcaps && tcpdump -U -nn -i eth0 -w /app/pcaps/web_traffic.pcap port 8080 & python web_pot.py"
+    cap_add: [NET_ADMIN, NET_RAW]
+    ports: ["8080:8080"]
+    volumes:
+      - .:/app
+
+  enricher:
+    build: .
+    container_name: sentinel_enricher
+    command: python enricher.py
+    volumes:
+      - .:/app
+
+  dashboard:
+    build: .
+    container_name: sentinel_dashboard
+    command: streamlit run dashboard.py --server.port=8501 --server.address=0.0.0.0
+    ports: ["8501:8501"]
+    volumes:
+      - .:/app

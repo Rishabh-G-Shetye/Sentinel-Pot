@@ -2,9 +2,10 @@ import socket
 import threading
 import paramiko
 import json
+import os
 from datetime import datetime
 
-# Load a host key (PyCharm terminal: ssh-keygen -t rsa -f server.key)
+# Generate key once
 HOST_KEY = paramiko.RSAKey.generate(2048)
 
 
@@ -20,31 +21,33 @@ class SSHServer(paramiko.ServerInterface):
             "password": password,
             "event": "login_attempt"
         }
-        print(f"[!] Attack from {self.client_ip}: {username}:{password}")
+        print(f"[!] SSH Attack from {self.client_ip}: {username}:{password}")
 
-        with open("attacks.json", "a") as f:
+        # Atomic append to shared volume
+        with open("/app/attacks.json", "a") as f:
             f.write(json.dumps(log_entry) + "\n")
+            f.flush()
 
-        return paramiko.AUTH_FAILED  # Always fail to keep them out
+        return paramiko.AUTH_FAILED
 
 
 def handle_client(client_sock):
-    client_ip = client_sock.getpeername()[0]
-    transport = paramiko.Transport(client_sock)
-    transport.add_server_key(HOST_KEY)
-    server = SSHServer(client_ip)
     try:
+        client_ip = client_sock.getpeername()[0]
+        transport = paramiko.Transport(client_sock)
+        transport.add_server_key(HOST_KEY)
+        server = SSHServer(client_ip)
         transport.start_server(server=server)
-    except Exception as e:
-        print(f"Error: {e}")
+    except Exception:
+        pass
 
 
-def start_pot(port=2222):  # Use 2222 to avoid needing sudo/root
+def start_pot(port=2222):
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     sock.bind(('0.0.0.0', port))
     sock.listen(100)
-    print(f"[*] Sentinel-Pot SSH active on port {port}...")
+    print(f"[*] SSH Honeypot Active on port {port}...")
 
     while True:
         client_sock, addr = sock.accept()

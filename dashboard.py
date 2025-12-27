@@ -1,52 +1,63 @@
 import streamlit as st
 import pandas as pd
 import json
+import time
+import os
 
-st.set_page_config(page_title="Sentinel-Pot Dashboard", layout="wide", page_icon="🛡️")
+st.set_page_config(page_title="Sentinel-Pot SOC", layout="wide", page_icon="🛡️")
 
-st.title("🛡️ Sentinel-Pot: Live Threat Intelligence")
-st.markdown("### Automated Deception & Attack Mapping")
+# File path inside Docker
+DATA_FILE = "/app/enriched_attacks.json"
 
 
 def load_data():
+    if not os.path.exists(DATA_FILE):
+        return pd.DataFrame()
     try:
-        with open("enriched_attacks.json", "r") as f:
-            return pd.DataFrame(json.load(f))
-    except Exception:
+        with open(DATA_FILE, "r") as f:
+            data = json.load(f)
+            return pd.DataFrame(data)
+    except:
         return pd.DataFrame()
 
 
-# This "fragment" decorator tells Streamlit to only rerun this function every 2 seconds
+# --- HEADER ---
+st.title("🛡️ Sentinel-Pot: Threat Intelligence")
+st.markdown("---")
+
+
+# --- REAL-TIME CONTENT ---
 @st.fragment(run_every="2s")
-def render_dashboard():
+def dashboard_content():
     df = load_data()
 
-    if not df.empty:
-        col1, col2 = st.columns([2, 1])
+    if df.empty:
+        st.warning("⚠️ Waiting for live attack traffic... Connect via Ngrok.")
+        return
 
-        with col1:
-            st.subheader("Global Attack Origins")
-            # The map is now outside the metrics for better layout
-            st.map(df[['lat', 'lon']])
+    # KPIS
+    c1, c2, c3 = st.columns(3)
+    c1.metric("Total Attacks Captured", len(df))
+    c2.metric("Critical Threats", len(df[df['risk_score'] > 80]))
+    c3.metric("Last Active", df.iloc[-1]['timestamp'] if not df.empty else "N/A")
 
-        with col2:
-            st.subheader("Quick Stats")
-            st.metric("Total Attacks", len(df))
-            st.metric("Unique IPs", df['ip'].nunique())
+    # MAP & CHARTS
+    c_map, c_list = st.columns([2, 1])
 
-            st.subheader("Top Passwords")
-            # Fixed the deprecation here: use_container_width -> width='stretch'
-            st.bar_chart(df['password'].value_counts().head(5), width='stretch')
+    with c_map:
+        st.subheader("Global Attack Origins")
+        st.map(df[['lat', 'lon']], zoom=1)
 
-        st.subheader("Recent Activity")
-        # Fixed the deprecation here: use_container_width -> width='stretch'
-        st.dataframe(
-            df[['timestamp', 'ip', 'country', 'username', 'password', 'isp']].tail(10),
-            width='stretch'
-        )
-    else:
-        st.info("Sentinel-Pot is active. Waiting for incoming data...")
+    with c_list:
+        st.subheader("Attack Vectors")
+        st.bar_chart(df['event'].value_counts())
+
+    # DATAFRAME
+    st.subheader("Live Packet Logs")
+    st.dataframe(
+        df[['timestamp', 'ip', 'username', 'password', 'mitre']].tail(10),
+        use_container_width=True
+    )
 
 
-# Call the fragmented function
-render_dashboard()
+dashboard_content()

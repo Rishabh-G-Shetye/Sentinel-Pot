@@ -1,9 +1,21 @@
-.venv/
-.idea/
+# --- Security / Secrets ---
+ngrok.yml
+.env
+*.key
+id_rsa
+server.key
+
+# --- Binaries & System ---
+ngrok.exe
 __pycache__/
 *.pyc
-# Ignore your log files so they don't bloat the repo
+
+# --- Live Data & Logs ---
 attacks.json
 enriched_attacks.json
-# Ignore the server key you generated
-server.key
+pcaps/
+*.pcap
+
+# --- OS Specific ---
+.DS_Store
+Thumbs.db

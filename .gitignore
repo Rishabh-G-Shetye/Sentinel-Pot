@@ -1,0 +1,9 @@
+.venv/
+.idea/
+__pycache__/
+*.pyc
+# Ignore your log files so they don't bloat the repo
+attacks.json
+enriched_attacks.json
+# Ignore the server key you generated
+server.key
